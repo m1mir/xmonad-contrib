@@ -42,7 +42,7 @@ module XMonad.Hooks.EwmhDesktops (
     -- $customActivate
     setEwmhActivateHook,
 
-    -- ** External workspace switching
+    -- ** Workspace switching
     -- $customWorkspaceSwitch
     setEwmhSwitchDesktopAction,
 
@@ -259,8 +259,19 @@ setEwmhActivateHook h = XC.modifyDef $ \c -> c{ activateHook = h }
 --
 -- For example if using the "XMonad.Layout.IndependentScreens" the default action
 -- might move a workspace to a screen that it isn't supposed to be on.
+-- This behaviour can be fixed using the following:
 --
--- > -- TODO add code example
+-- > import XMonad.Actions.OnScreen
+-- > import XMonad.Layout.IndependentScreens
+-- >
+-- > main = xmonad $ ... . setEwmhSwitchDesktopAction switchDesktopAction . ewmh . ... $
+-- >  def{
+-- >    ...
+-- >      workspaces = withScreens 2 (workspaces def)
+-- >    ...
+-- >  }
+-- >
+-- > switchDesktopAction workspaceId = viewOnScreen (unmarshallS workspaceId) workspaceId
 
 -- | Set (replace) the action which is invoked when a client sends a
 -- @_NET_CURRENT_DESKTOP@ request to switch workspace.
