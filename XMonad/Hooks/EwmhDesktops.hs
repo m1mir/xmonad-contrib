@@ -264,14 +264,12 @@ setEwmhActivateHook h = XC.modifyDef $ \c -> c{ activateHook = h }
 -- > import XMonad.Actions.OnScreen
 -- > import XMonad.Layout.IndependentScreens
 -- >
--- > main = xmonad $ ... . setEwmhSwitchDesktopAction switchDesktopAction . ewmh . ... $
+-- > main = xmonad $ ... . setEwmhSwitchDesktopAction focusWorkspace . ewmh . ... $
 -- >  def{
 -- >    ...
 -- >      workspaces = withScreens 2 (workspaces def)
 -- >    ...
 -- >  }
--- >
--- > switchDesktopAction workspaceId = viewOnScreen (unmarshallS workspaceId) workspaceId
 
 -- | Set (replace) the action which is invoked when a client sends a
 -- @_NET_CURRENT_DESKTOP@ request to switch workspace.
