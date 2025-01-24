@@ -44,7 +44,7 @@ module XMonad.Hooks.EwmhDesktops (
 
     -- ** Workspace switching
     -- $customWorkspaceSwitch
-    setEwmhSwitchDesktopAction,
+    setEwmhSwitchDesktopHook,
 
     -- ** Fullscreen
     -- $customFullscreen
@@ -118,7 +118,7 @@ data EwmhDesktopsConfig =
             -- ^ configurable handling of window activation requests
         , fullscreenHooks :: (ManageHook, ManageHook)
             -- ^ configurable handling of fullscreen state requests
-        , switchDesktopAction :: WorkspaceId -> WindowSet -> WindowSet
+        , switchDesktopHook :: WorkspaceId -> WindowSet -> WindowSet
             -- ^ configurable action for handling _NET_CURRENT_DESKTOP
         , manageDesktopViewport :: Bool
             -- ^ manage @_NET_DESKTOP_VIEWPORT@?
@@ -130,7 +130,7 @@ instance Default EwmhDesktopsConfig where
         , workspaceRename = pure pure
         , activateHook = doFocus
         , fullscreenHooks = (doFullFloat, doSink)
-        , switchDesktopAction = W.view
+        , switchDesktopHook = W.view
         , manageDesktopViewport = True
         }
 
@@ -264,7 +264,7 @@ setEwmhActivateHook h = XC.modifyDef $ \c -> c{ activateHook = h }
 -- > import XMonad.Actions.OnScreen
 -- > import XMonad.Layout.IndependentScreens
 -- >
--- > main = xmonad $ ... . setEwmhSwitchDesktopAction focusWorkspace . ewmh . ... $
+-- > main = xmonad $ ... . setEwmhSwitchDesktopHook focusWorkspace . ewmh . ... $
 -- >  def{
 -- >    ...
 -- >      workspaces = withScreens 2 (workspaces def)
@@ -273,8 +273,8 @@ setEwmhActivateHook h = XC.modifyDef $ \c -> c{ activateHook = h }
 
 -- | Set (replace) the action which is invoked when a client sends a
 -- @_NET_CURRENT_DESKTOP@ request to switch workspace.
-setEwmhSwitchDesktopAction :: (WorkspaceId -> WindowSet -> WindowSet) -> XConfig l -> XConfig l
-setEwmhSwitchDesktopAction action = XC.modifyDef $ \c -> c{ switchDesktopAction = action }
+setEwmhSwitchDesktopHook :: (WorkspaceId -> WindowSet -> WindowSet) -> XConfig l -> XConfig l
+setEwmhSwitchDesktopHook action = XC.modifyDef $ \c -> c{ switchDesktopHook = action }
 
 
 -- $customFullscreen
@@ -481,7 +481,7 @@ mkViewPorts winset = setDesktopViewport . concat . mapMaybe (viewPorts M.!?)
 ewmhDesktopsEventHook' :: Event -> EwmhDesktopsConfig -> X All
 ewmhDesktopsEventHook'
         ClientMessageEvent{ev_window = w, ev_message_type = mt, ev_data = d}
-        EwmhDesktopsConfig{workspaceSort, activateHook, switchDesktopAction} =
+        EwmhDesktopsConfig{workspaceSort, activateHook, switchDesktopHook} =
     withWindowSet $ \s -> do
         sort' <- workspaceSort
         let ws = sort' $ W.workspaces s
@@ -494,7 +494,7 @@ ewmhDesktopsEventHook'
         if  | mt == a_cw ->
                 killWindow w
             | mt == a_cd, n : _ <- d, Just ww <- ws !? fi n ->
-                if W.currentTag s == W.tag ww then mempty else windows $ switchDesktopAction (W.tag ww)
+                if W.currentTag s == W.tag ww then mempty else windows $ switchDesktopHook (W.tag ww)
             | mt == a_cd ->
                 trace $ "Bad _NET_CURRENT_DESKTOP with data=" ++ show d
             | not (w `W.member` s) ->

@@ -166,7 +166,7 @@ focusScreen screenId = withWspOnScreen screenId W.view
 
 
 -- | Focus the given workspace on the correct Xinerama screen.
--- An example usage can be found at `XMonad.Hooks.EwmhDesktops.setEwmhSwitchDesktopAction`
+-- An example usage can be found at `XMonad.Hooks.EwmhDesktops.setEwmhSwitchDesktopHook`
 focusWorkspace :: WorkspaceId -> WindowSet -> WindowSet
 focusWorkspace workspaceId = viewOnScreen (unmarshallS workspaceId) workspaceId
 

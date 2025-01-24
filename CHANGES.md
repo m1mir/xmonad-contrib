@@ -43,7 +43,7 @@
 
     - Added a customization option for the action that gets executed when
       a client sends a **_NET_CURRENT_DESKTOP** request. It is now possible
-      to change it using the `setEwmhSwitchDesktopAction`.
+      to change it using the `setEwmhSwitchDesktopHook`.
 
   * `XMonad.Layout.IndependentScreens`
 
