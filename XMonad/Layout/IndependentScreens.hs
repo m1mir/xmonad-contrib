@@ -164,7 +164,6 @@ focusWindow' window ws
 focusScreen :: ScreenId -> WindowSet -> WindowSet
 focusScreen screenId = withWspOnScreen screenId W.view
 
-
 -- | Focus the given workspace on the correct Xinerama screen.
 -- An example usage can be found at `XMonad.Hooks.EwmhDesktops.setEwmhSwitchDesktopHook`
 focusWorkspace :: WorkspaceId -> WindowSet -> WindowSet
