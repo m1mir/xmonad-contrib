@@ -49,6 +49,8 @@
 
     - Added `focusWorkspace` for focusing workspaces on the screen that they
       belong to.
+    - Added `doFocus'` hook as an alternative for `doFocus` when using
+      IndependentScreens.
 
 ## 0.18.1 (August 20, 2024)
 
