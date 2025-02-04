@@ -44,6 +44,9 @@
     - Added a customization option for the action that gets executed when
       a client sends a **_NET_CURRENT_DESKTOP** request. It is now possible
       to change it using the `setEwmhSwitchDesktopHook`.
+    - Added a custimzation option for mapping hidden workspaces to screens
+      when setting the **_NET_DESKTOP_VIEWPORT**. This can be done using
+      the `setEwmhMappHiddenWorkspaceToScreen`.
 
   * `XMonad.Layout.IndependentScreens`
 
