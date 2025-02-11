@@ -507,7 +507,7 @@ mkViewPorts winset _hiddenWorkspaceMapper = setDesktopViewport . concat . mapMay
   where
     foc = W.current winset
     viewPorts :: M.Map WorkspaceId [Position]
-    viewPorts = M.fromList $ map mkVisibleViewPort [foc]
+    viewPorts = M.fromList $ map mkVisibleViewPort (foc : W.visible winset)
 
     mkViewPort :: WindowScreen -> WindowSpace -> (WorkspaceId, [Position])
     mkViewPort scr w = (W.tag w, mkPos scr)
