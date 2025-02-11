@@ -3,6 +3,9 @@
 {-# LANGUAGE PatternGuards #-}
 
 -----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+
 -- |
 -- Module       : XMonad.Hooks.EwmhDesktops
 -- Description  : Make xmonad use the extended window manager hints (EWMH).
@@ -18,9 +21,8 @@
 -- hints to tell panel applications about its workspaces and the windows
 -- therein. It also allows the user to interact with xmonad by clicking on
 -- panels and window lists.
------------------------------------------------------------------------------
-module XMonad.Hooks.EwmhDesktops (
-    -- * Usage
+module XMonad.Hooks.EwmhDesktops
+  ( -- * Usage
     -- $usage
     ewmh,
     ewmhFullscreen,
@@ -32,11 +34,13 @@ module XMonad.Hooks.EwmhDesktops (
 
     -- ** Sorting/filtering of workspaces
     -- $customSort
-    addEwmhWorkspaceSort, setEwmhWorkspaceSort,
+    addEwmhWorkspaceSort,
+    setEwmhWorkspaceSort,
 
     -- ** Renaming of workspaces
     -- $customRename
-    addEwmhWorkspaceRename, setEwmhWorkspaceRename,
+    addEwmhWorkspaceRename,
+    setEwmhWorkspaceRename,
 
     -- ** Window activation
     -- $customActivate
@@ -53,7 +57,6 @@ module XMonad.Hooks.EwmhDesktops (
     -- ** @_NET_DESKTOP_VIEWPORT@
     -- $customManageDesktopViewport
     disableEwmhManageDesktopViewport,
-
     -- $customHiddenWorkspaceMapper
     setEwmhMapHiddenWorkspaceToScreen,
 
@@ -65,22 +68,21 @@ module XMonad.Hooks.EwmhDesktops (
     ewmhDesktopsEventHookCustom,
     fullscreenEventHook,
     fullscreenStartup,
-    ) where
+  )
+where
 
 import Codec.Binary.UTF8.String (encode)
 import Data.Bits
 import qualified Data.Map.Strict as M
-
 import XMonad
-import XMonad.Prelude
-import qualified XMonad.StackSet as W
-
 import XMonad.Hooks.ManageHelpers
 import XMonad.Hooks.SetWMName
-import XMonad.Util.WorkspaceCompare
-import XMonad.Util.WindowProperties (getProp32)
+import XMonad.Prelude
+import qualified XMonad.StackSet as W
 import qualified XMonad.Util.ExtensibleConf as XC
 import qualified XMonad.Util.ExtensibleState as XS
+import XMonad.Util.WindowProperties (getProp32)
+import XMonad.Util.WorkspaceCompare
 
 -- $usage
 -- You can use this module with the following in your @xmonad.hs@:
@@ -102,45 +104,46 @@ import qualified XMonad.Util.ExtensibleState as XS
 -- | Add EWMH support for workspaces (virtual desktops) to the given
 -- 'XConfig'.  See above for an example.
 ewmh :: XConfig a -> XConfig a
-ewmh c = c { startupHook     = ewmhDesktopsStartup <> startupHook c
-           , handleEventHook = ewmhDesktopsEventHook <> handleEventHook c
-           , logHook         = ewmhDesktopsLogHook <> logHook c }
-
+ewmh c =
+  c
+    { startupHook = ewmhDesktopsStartup <> startupHook c,
+      handleEventHook = ewmhDesktopsEventHook <> handleEventHook c,
+      logHook = ewmhDesktopsLogHook <> logHook c
+    }
 
 -- $customization
 -- It's possible to customize the behaviour of 'ewmh' in several ways:
 
 -- | Customizable configuration for EwmhDesktops
-data EwmhDesktopsConfig =
-    EwmhDesktopsConfig
-        { workspaceSort :: X WorkspaceSort
-            -- ^ configurable workspace sorting/filtering
-        , workspaceRename :: X (String -> WindowSpace -> String)
-            -- ^ configurable workspace rename (see 'XMonad.Hooks.StatusBar.PP.ppRename')
-        , activateHook :: ManageHook
-            -- ^ configurable handling of window activation requests
-        , fullscreenHooks :: (ManageHook, ManageHook)
-            -- ^ configurable handling of fullscreen state requests
-        , switchDesktopHook :: WorkspaceId -> WindowSet -> WindowSet
-            -- ^ configurable action for handling _NET_CURRENT_DESKTOP
-        , manageDesktopViewport :: Bool
-            -- ^ manage @_NET_DESKTOP_VIEWPORT@?
-        , hiddenWorkspaceToScreen :: WindowSet -> WindowSpace -> WindowScreen
-            -- ^ map hidden workspaces to screens for @_NET_DESKTOP_VIEWPORT@
-        }
+data EwmhDesktopsConfig = EwmhDesktopsConfig
+  { -- | configurable workspace sorting/filtering
+    workspaceSort :: X WorkspaceSort,
+    -- | configurable workspace rename (see 'XMonad.Hooks.StatusBar.PP.ppRename')
+    workspaceRename :: X (String -> WindowSpace -> String),
+    -- | configurable handling of window activation requests
+    activateHook :: ManageHook,
+    -- | configurable handling of fullscreen state requests
+    fullscreenHooks :: (ManageHook, ManageHook),
+    -- | configurable action for handling _NET_CURRENT_DESKTOP
+    switchDesktopHook :: WorkspaceId -> WindowSet -> WindowSet,
+    -- | manage @_NET_DESKTOP_VIEWPORT@?
+    manageDesktopViewport :: Bool,
+    -- | map hidden workspaces to screens for @_NET_DESKTOP_VIEWPORT@
+    hiddenWorkspaceToScreen :: WindowSet -> WindowSpace -> WindowScreen
+  }
 
 instance Default EwmhDesktopsConfig where
-    def = EwmhDesktopsConfig
-        { workspaceSort = getSortByIndex
-        , workspaceRename = pure pure
-        , activateHook = doFocus
-        , fullscreenHooks = (doFullFloat, doSink)
-        , switchDesktopHook = W.view
-        , manageDesktopViewport = True
+  def =
+    EwmhDesktopsConfig
+      { workspaceSort = getSortByIndex,
+        workspaceRename = pure pure,
+        activateHook = doFocus,
+        fullscreenHooks = (doFullFloat, doSink),
+        switchDesktopHook = W.view,
+        manageDesktopViewport = True,
         -- Hidden workspaces are mapped to the current screen by default.
-        , hiddenWorkspaceToScreen = \winset _ -> W.current winset
-        }
-
+        hiddenWorkspaceToScreen = \winset _ -> W.current winset
+      }
 
 -- $customSort
 -- The list of workspaces exposed to EWMH pagers (like
@@ -171,12 +174,11 @@ instance Default EwmhDesktopsConfig where
 -- can be used to e.g. filter out scratchpad workspaces. Workspaces /must not/
 -- be renamed here.
 addEwmhWorkspaceSort :: X WorkspaceSort -> XConfig l -> XConfig l
-addEwmhWorkspaceSort f = XC.modifyDef $ \c -> c{ workspaceSort = liftA2 (.) f (workspaceSort c) }
+addEwmhWorkspaceSort f = XC.modifyDef $ \c -> c {workspaceSort = liftA2 (.) f (workspaceSort c)}
 
 -- | Like 'addEwmhWorkspaceSort', but replace it instead of adding/composing.
 setEwmhWorkspaceSort :: X WorkspaceSort -> XConfig l -> XConfig l
-setEwmhWorkspaceSort f = XC.modifyDef $ \c -> c{ workspaceSort = f }
-
+setEwmhWorkspaceSort f = XC.modifyDef $ \c -> c {workspaceSort = f}
 
 -- $customRename
 -- The workspace names exposed to EWMH pagers and other clients (e.g.
@@ -208,12 +210,11 @@ setEwmhWorkspaceSort f = XC.modifyDef $ \c -> c{ workspaceSort = f }
 -- "XMonad.Actions.WorkspaceNames", "XMonad.Layout.IndependentScreens",
 -- "XMonad.Hooks.DynamicIcons".
 addEwmhWorkspaceRename :: X (String -> WindowSpace -> String) -> XConfig l -> XConfig l
-addEwmhWorkspaceRename f = XC.modifyDef $ \c -> c{ workspaceRename = liftA2 (<=<) f (workspaceRename c) }
+addEwmhWorkspaceRename f = XC.modifyDef $ \c -> c {workspaceRename = liftA2 (<=<) f (workspaceRename c)}
 
 -- | Like 'addEwmhWorkspaceRename', but replace it instead of adding/composing.
 setEwmhWorkspaceRename :: X (String -> WindowSpace -> String) -> XConfig l -> XConfig l
-setEwmhWorkspaceRename f = XC.modifyDef $ \c -> c{ workspaceRename = f }
-
+setEwmhWorkspaceRename f = XC.modifyDef $ \c -> c {workspaceRename = f}
 
 -- $customActivate
 -- When a client sends a @_NET_ACTIVE_WINDOW@ request to activate a window, by
@@ -256,8 +257,7 @@ setEwmhWorkspaceRename f = XC.modifyDef $ \c -> c{ workspaceRename = f }
 -- More complex hooks can be constructed using combinators from
 -- "XMonad.ManageHook", "XMonad.Hooks.ManageHelpers" and "XMonad.Hooks.Focus".
 setEwmhActivateHook :: ManageHook -> XConfig l -> XConfig l
-setEwmhActivateHook h = XC.modifyDef $ \c -> c{ activateHook = h }
-
+setEwmhActivateHook h = XC.modifyDef $ \c -> c {activateHook = h}
 
 -- $customWorkspaceSwitch
 -- When a client sends a @_NET_CURRENT_DESKTOP@ request to switch to a workspace,
@@ -281,8 +281,7 @@ setEwmhActivateHook h = XC.modifyDef $ \c -> c{ activateHook = h }
 -- | Set (replace) the action which is invoked when a client sends a
 -- @_NET_CURRENT_DESKTOP@ request to switch workspace.
 setEwmhSwitchDesktopHook :: (WorkspaceId -> WindowSet -> WindowSet) -> XConfig l -> XConfig l
-setEwmhSwitchDesktopHook action = XC.modifyDef $ \c -> c{ switchDesktopHook = action }
-
+setEwmhSwitchDesktopHook action = XC.modifyDef $ \c -> c {switchDesktopHook = action}
 
 -- $customFullscreen
 -- When a client sends a @_NET_WM_STATE@ request to add\/remove\/toggle the
@@ -296,11 +295,12 @@ setEwmhSwitchDesktopHook action = XC.modifyDef $ \c -> c{ switchDesktopHook = ac
 -- original state of floating windows.
 
 -- | Set (replace) the hooks invoked when clients ask to add/remove the
+
 -- $_NET_WM_STATE_FULLSCREEN@ state. The defaults are 'doFullFloat' and
 -- 'doSink'.
-setEwmhFullscreenHooks :: ManageHook -> ManageHook -> XConfig l -> XConfig l
-setEwmhFullscreenHooks f uf = XC.modifyDef $ \c -> c{ fullscreenHooks = (f, uf) }
 
+setEwmhFullscreenHooks :: ManageHook -> ManageHook -> XConfig l -> XConfig l
+setEwmhFullscreenHooks f uf = XC.modifyDef $ \c -> c {fullscreenHooks = (f, uf)}
 
 -- $customManageDesktopViewport
 -- Setting @_NET_DESKTOP_VIEWPORT@ is typically desired but can lead to a
@@ -318,10 +318,9 @@ setEwmhFullscreenHooks f uf = XC.modifyDef $ \c -> c{ fullscreenHooks = (f, uf) 
 -- > xprop -root -remove _NET_DESKTOP_VIEWPORT
 --
 -- Which should immediately fix your bar.
---
-disableEwmhManageDesktopViewport :: XConfig l -> XConfig l
-disableEwmhManageDesktopViewport = XC.modifyDef $ \c -> c{ manageDesktopViewport = False }
 
+disableEwmhManageDesktopViewport :: XConfig l -> XConfig l
+disableEwmhManageDesktopViewport = XC.modifyDef $ \c -> c {manageDesktopViewport = False}
 
 -- $customHiddenWorkspaceMapper
 --
@@ -344,12 +343,13 @@ disableEwmhManageDesktopViewport = XC.modifyDef $ \c -> c{ manageDesktopViewport
 -- > main = xmonad $ ... . setEwmhMapHiddenWorkspaceToScreen customMapper . ewmh . ... $ def{...}
 
 -- | Set (replace) the function responsible for mapping the hidden workspaces to screens.
-setEwmhMapHiddenWorkspaceToScreen :: (WindowSet -> (WindowSpace -> WindowScreen))
-                                        -- ^ Function that given the current WindowSet
-                                        -- produces a function to maps a (hidden) workspace to a screen.
-                                        -> XConfig l -> XConfig l
-setEwmhMapHiddenWorkspaceToScreen mapper = XC.modifyDef $ \c -> c{ hiddenWorkspaceToScreen = mapper }
-
+setEwmhMapHiddenWorkspaceToScreen ::
+  -- | Function that given the current WindowSet
+  -- produces a function to maps a (hidden) workspace to a screen.
+  (WindowSet -> (WindowSpace -> WindowScreen)) ->
+  XConfig l ->
+  XConfig l
+setEwmhMapHiddenWorkspaceToScreen mapper = XC.modifyDef $ \c -> c {hiddenWorkspaceToScreen = mapper}
 
 -- | Initializes EwmhDesktops and advertises EWMH support to the X server.
 {-# DEPRECATED ewmhDesktopsStartup "Use ewmh instead." #-}
@@ -367,7 +367,7 @@ ewmhDesktopsLogHook = XC.withDef ewmhDesktopsLogHook'
 {-# DEPRECATED ewmhDesktopsLogHookCustom "Use ewmh and addEwmhWorkspaceSort instead." #-}
 ewmhDesktopsLogHookCustom :: WorkspaceSort -> X ()
 ewmhDesktopsLogHookCustom f =
-    ewmhDesktopsLogHook' def{ workspaceSort = (f .) <$> workspaceSort def }
+  ewmhDesktopsLogHook' def {workspaceSort = (f .) <$> workspaceSort def}
 
 -- | Intercepts messages from pagers and similar applications and reacts on them.
 --
@@ -389,34 +389,41 @@ ewmhDesktopsEventHook = XC.withDef . ewmhDesktopsEventHook'
 {-# DEPRECATED ewmhDesktopsEventHookCustom "Use ewmh and addEwmhWorkspaceSort instead." #-}
 ewmhDesktopsEventHookCustom :: WorkspaceSort -> Event -> X All
 ewmhDesktopsEventHookCustom f e =
-    ewmhDesktopsEventHook' e def{ workspaceSort = (f .) <$> workspaceSort def }
+  ewmhDesktopsEventHook' e def {workspaceSort = (f .) <$> workspaceSort def}
 
 -- | Cached @_NET_DESKTOP_NAMES@, @_NET_NUMBER_OF_DESKTOPS@
-newtype DesktopNames = DesktopNames [String] deriving Eq
+newtype DesktopNames = DesktopNames [String] deriving (Eq)
+
 instance ExtensionClass DesktopNames where initialValue = DesktopNames []
 
 -- | Cached @_NET_CLIENT_LIST@
-newtype ClientList = ClientList [Window] deriving Eq
+newtype ClientList = ClientList [Window] deriving (Eq)
+
 instance ExtensionClass ClientList where initialValue = ClientList [none]
 
 -- | Cached @_NET_CLIENT_LIST_STACKING@
-newtype ClientListStacking = ClientListStacking [Window] deriving Eq
+newtype ClientListStacking = ClientListStacking [Window] deriving (Eq)
+
 instance ExtensionClass ClientListStacking where initialValue = ClientListStacking [none]
 
 -- | Cached @_NET_CURRENT_DESKTOP@
-newtype CurrentDesktop = CurrentDesktop Int deriving Eq
+newtype CurrentDesktop = CurrentDesktop Int deriving (Eq)
+
 instance ExtensionClass CurrentDesktop where initialValue = CurrentDesktop (complement 0)
 
 -- | Cached @_NET_WM_DESKTOP@
-newtype WindowDesktops = WindowDesktops (M.Map Window Int) deriving Eq
+newtype WindowDesktops = WindowDesktops (M.Map Window Int) deriving (Eq)
+
 instance ExtensionClass WindowDesktops where initialValue = WindowDesktops (M.singleton none (complement 0))
 
 -- | Cached @_NET_ACTIVE_WINDOW@
-newtype ActiveWindow = ActiveWindow Window deriving Eq
+newtype ActiveWindow = ActiveWindow Window deriving (Eq)
+
 instance ExtensionClass ActiveWindow where initialValue = ActiveWindow (complement none)
 
 -- | Cached @_NET_DESKTOP_VIEWPORT@
-newtype MonitorTags = MonitorTags [WorkspaceId] deriving (Show,Eq)
+newtype MonitorTags = MonitorTags [WorkspaceId] deriving (Show, Eq)
+
 instance ExtensionClass MonitorTags where initialValue = MonitorTags []
 
 -- | Compare the given value against the value in the extensible state. Run the
@@ -425,85 +432,82 @@ whenChanged :: (Eq a, ExtensionClass a) => a -> X () -> X ()
 whenChanged = whenX . XS.modified . const
 
 ewmhDesktopsLogHook' :: EwmhDesktopsConfig -> X ()
-ewmhDesktopsLogHook' EwmhDesktopsConfig{workspaceSort, workspaceRename, manageDesktopViewport, hiddenWorkspaceToScreen} = withWindowSet $ \s -> do
-    sort' <- workspaceSort
-    let ws = sort' $ W.workspaces s
+ewmhDesktopsLogHook' EwmhDesktopsConfig {workspaceSort, workspaceRename, manageDesktopViewport, hiddenWorkspaceToScreen} = withWindowSet $ \s -> do
+  sort' <- workspaceSort
+  let ws = sort' $ W.workspaces s
 
-    -- Set number of workspaces and names thereof
-    rename <- workspaceRename
-    let desktopNames = [ rename (W.tag w) w | w <- ws ]
-    whenChanged (DesktopNames desktopNames) $ do
-        setNumberOfDesktops (length desktopNames)
-        setDesktopNames desktopNames
+  -- Set number of workspaces and names thereof
+  rename <- workspaceRename
+  let desktopNames = [rename (W.tag w) w | w <- ws]
+  whenChanged (DesktopNames desktopNames) $ do
+    setNumberOfDesktops (length desktopNames)
+    setDesktopNames desktopNames
 
-    -- Set client list which should be sorted by window age. We just
-    -- guess that StackSet contains windows list in this order which
-    -- isn't true but at least gives consistency with windows cycling
-    let clientList = nub . concatMap (W.integrate' . W.stack) $ ws
-    whenChanged (ClientList clientList) $ setClientList clientList
+  -- Set client list which should be sorted by window age. We just
+  -- guess that StackSet contains windows list in this order which
+  -- isn't true but at least gives consistency with windows cycling
+  let clientList = nub . concatMap (W.integrate' . W.stack) $ ws
+  whenChanged (ClientList clientList) $ setClientList clientList
 
-    -- @ws@ is sorted in the "workspace order", which, by default, is
-    -- the lexicographical sorting on @WorkspaceId@.
-    -- @_NET_CLIENT_LIST_STACKING@ is expected to be in the "bottom-to-top
-    -- stacking order".  It is unclear what that would mean for windows on
-    -- invisible workspaces, but it seems reasonable to assume that windows on
-    -- the current workspace should be "at the top".  With the focused window to
-    -- be the top most, meaning the last.
-    --
-    -- There has been a number of discussions on the order of windows within a
-    -- workspace.  See:
-    --
-    --   https://github.com/xmonad/xmonad-contrib/issues/567
-    --   https://github.com/xmonad/xmonad-contrib/pull/568
-    --   https://github.com/xmonad/xmonad-contrib/pull/772
-    let clientListStacking =
-          let wsInFocusOrder = W.hidden s
-                               ++ (map W.workspace . W.visible) s
-                               ++ [W.workspace $ W.current s]
-              stackWindows (W.Stack cur up down) = reverse up ++ down ++ [cur]
-              workspaceWindows = maybe [] stackWindows . W.stack
-              -- In case a window is a member of multiple workspaces, we keep
-              -- only the last occurrence in the list.  One that is closer to
-              -- the top in the focus order.
-              uniqueKeepLast = reverse . nub . reverse
-           in uniqueKeepLast $ concatMap workspaceWindows wsInFocusOrder
-    whenChanged (ClientListStacking clientListStacking) $
-      setClientListStacking clientListStacking
+  -- @ws@ is sorted in the "workspace order", which, by default, is
+  -- the lexicographical sorting on @WorkspaceId@.
+  -- @_NET_CLIENT_LIST_STACKING@ is expected to be in the "bottom-to-top
+  -- stacking order".  It is unclear what that would mean for windows on
+  -- invisible workspaces, but it seems reasonable to assume that windows on
+  -- the current workspace should be "at the top".  With the focused window to
+  -- be the top most, meaning the last.
+  --
+  -- There has been a number of discussions on the order of windows within a
+  -- workspace.  See:
+  --
+  --   https://github.com/xmonad/xmonad-contrib/issues/567
+  --   https://github.com/xmonad/xmonad-contrib/pull/568
+  --   https://github.com/xmonad/xmonad-contrib/pull/772
+  let clientListStacking =
+        let wsInFocusOrder =
+              W.hidden s
+                ++ (map W.workspace . W.visible) s
+                ++ [W.workspace $ W.current s]
+            stackWindows (W.Stack cur up down) = reverse up ++ down ++ [cur]
+            workspaceWindows = maybe [] stackWindows . W.stack
+            -- In case a window is a member of multiple workspaces, we keep
+            -- only the last occurrence in the list.  One that is closer to
+            -- the top in the focus order.
+            uniqueKeepLast = reverse . nub . reverse
+         in uniqueKeepLast $ concatMap workspaceWindows wsInFocusOrder
+  whenChanged (ClientListStacking clientListStacking) $
+    setClientListStacking clientListStacking
 
-    -- Set current desktop number
-    let current = W.currentTag s `elemIndex` map W.tag ws
-    whenChanged (CurrentDesktop $ fromMaybe 0 current) $
-        mapM_ setCurrentDesktop current
+  -- Set current desktop number
+  let current = W.currentTag s `elemIndex` map W.tag ws
+  whenChanged (CurrentDesktop $ fromMaybe 0 current) $
+    mapM_ setCurrentDesktop current
 
-    -- Set window-desktop mapping
-    let windowDesktops =
-          let f wsId workspace = M.fromList [ (winId, wsId) | winId <- W.integrate' $ W.stack workspace ]
-          in M.unions $ zipWith f [0..] ws
-    whenChanged (WindowDesktops windowDesktops) $
-        mapM_ (uncurry setWindowDesktop) (M.toList windowDesktops)
+  -- Set window-desktop mapping
+  let windowDesktops =
+        let f wsId workspace = M.fromList [(winId, wsId) | winId <- W.integrate' $ W.stack workspace]
+         in M.unions $ zipWith f [0 ..] ws
+  whenChanged (WindowDesktops windowDesktops) $
+    mapM_ (uncurry setWindowDesktop) (M.toList windowDesktops)
 
-    -- Set active window
-    let activeWindow' = fromMaybe none (W.peek s)
-    whenChanged (ActiveWindow activeWindow') $ setActiveWindow activeWindow'
+  -- Set active window
+  let activeWindow' = fromMaybe none (W.peek s)
+  whenChanged (ActiveWindow activeWindow') $ setActiveWindow activeWindow'
 
-    -- Set desktop Viewport
-    when manageDesktopViewport $ do
-        let visibleScreens = W.current s : W.visible s
-            currentTags    = map (W.tag . W.workspace) visibleScreens
-        whenChanged (MonitorTags currentTags) $ mkViewPorts s hiddenWorkspaceToScreen (map W.tag ws)
+  -- Set desktop Viewport
+  when manageDesktopViewport $ do
+    let visibleScreens = W.current s : W.visible s
+        currentTags = map (W.tag . W.workspace) visibleScreens
+    whenChanged (MonitorTags currentTags) $ mkViewPorts s hiddenWorkspaceToScreen (map W.tag ws)
 
 -- | Create the viewports from the current 'WindowSet' and a list of
 -- already sorted workspace IDs.
 mkViewPorts :: WindowSet -> (WindowSet -> WindowSpace -> WindowScreen) -> [WorkspaceId] -> X ()
-mkViewPorts winset hiddenWorkspaceMapper = setDesktopViewport . concat . mapMaybe (viewPorts M.!?)
+mkViewPorts winset _hiddenWorkspaceMapper = setDesktopViewport . concat . mapMaybe (viewPorts M.!?)
   where
     foc = W.current winset
     viewPorts :: M.Map WorkspaceId [Position]
     viewPorts = M.fromList $ map mkVisibleViewPort (foc : W.visible winset)
-                          ++ map (uncurry mkViewPort) hiddenWorkspacesWithScreens
-
-    hiddenWorkspacesWithScreens :: [(WindowScreen,WindowSpace)]
-    hiddenWorkspacesWithScreens = map (\x-> (hiddenWorkspaceMapper winset x,x)) (W.hidden winset)
 
     mkViewPort :: WindowScreen -> WindowSpace -> (WorkspaceId, [Position])
     mkViewPort scr w = (W.tag w, mkPos scr)
@@ -513,48 +517,55 @@ mkViewPorts winset hiddenWorkspaceMapper = setDesktopViewport . concat . mapMayb
 
     mkPos :: WindowScreen -> [Position]
     mkPos scr = [rect_x (rect scr), rect_y (rect scr)]
-      where rect = screenRect . W.screenDetail
+      where
+        rect = screenRect . W.screenDetail
 
 ewmhDesktopsEventHook' :: Event -> EwmhDesktopsConfig -> X All
 ewmhDesktopsEventHook'
-        ClientMessageEvent{ev_window = w, ev_message_type = mt, ev_data = d}
-        EwmhDesktopsConfig{workspaceSort, activateHook, switchDesktopHook} =
+  ClientMessageEvent {ev_window = w, ev_message_type = mt, ev_data = d}
+  EwmhDesktopsConfig {workspaceSort, activateHook, switchDesktopHook} =
     withWindowSet $ \s -> do
-        sort' <- workspaceSort
-        let ws = sort' $ W.workspaces s
+      sort' <- workspaceSort
+      let ws = sort' $ W.workspaces s
 
-        a_cd <- getAtom "_NET_CURRENT_DESKTOP"
-        a_d <- getAtom "_NET_WM_DESKTOP"
-        a_aw <- getAtom "_NET_ACTIVE_WINDOW"
-        a_cw <- getAtom "_NET_CLOSE_WINDOW"
+      a_cd <- getAtom "_NET_CURRENT_DESKTOP"
+      a_d <- getAtom "_NET_WM_DESKTOP"
+      a_aw <- getAtom "_NET_ACTIVE_WINDOW"
+      a_cw <- getAtom "_NET_CLOSE_WINDOW"
 
-        if  | mt == a_cw ->
-                killWindow w
-            | mt == a_cd, n : _ <- d, Just ww <- ws !? fi n ->
-                if W.currentTag s == W.tag ww then mempty else windows $ switchDesktopHook (W.tag ww)
-            | mt == a_cd ->
-                trace $ "Bad _NET_CURRENT_DESKTOP with data=" ++ show d
-            | not (w `W.member` s) ->
-                -- do nothing for unmanaged windows; it'd be just a useless
-                -- refresh which breaks menus/popups of misbehaving apps that
-                -- send _NET_ACTIVE_WINDOW requests for override-redirect wins
-                mempty
-            | mt == a_d, n : _ <- d, Just ww <- ws !? fi n ->
-                if W.findTag w s == Just (W.tag ww) then mempty else windows $ W.shiftWin (W.tag ww) w
-            | mt == a_d ->
-                trace $ "Bad _NET_WM_DESKTOP with data=" ++ show d
-            | mt == a_aw, 2 : _ <- d ->
-                -- when the request comes from a pager, honor it unconditionally
-                -- https://specifications.freedesktop.org/wm-spec/wm-spec-1.3.html#sourceindication
-                if W.peek s == Just w then mempty else windows $ W.focusWindow w
-            | mt == a_aw -> do
-                if W.peek s == Just w then mempty else windows . appEndo =<< runQuery activateHook w
-            | otherwise ->
-                -- The Message is unknown to us, but that is ok, not all are meant
-                -- to be handled by the window manager
-                mempty
+      if
+        | mt == a_cw ->
+            killWindow w
+        | mt == a_cd,
+          n : _ <- d,
+          Just ww <- ws !? fi n ->
+            if W.currentTag s == W.tag ww then mempty else windows $ switchDesktopHook (W.tag ww)
+        | mt == a_cd ->
+            trace $ "Bad _NET_CURRENT_DESKTOP with data=" ++ show d
+        | not (w `W.member` s) ->
+            -- do nothing for unmanaged windows; it'd be just a useless
+            -- refresh which breaks menus/popups of misbehaving apps that
+            -- send _NET_ACTIVE_WINDOW requests for override-redirect wins
+            mempty
+        | mt == a_d,
+          n : _ <- d,
+          Just ww <- ws !? fi n ->
+            if W.findTag w s == Just (W.tag ww) then mempty else windows $ W.shiftWin (W.tag ww) w
+        | mt == a_d ->
+            trace $ "Bad _NET_WM_DESKTOP with data=" ++ show d
+        | mt == a_aw,
+          2 : _ <- d ->
+            -- when the request comes from a pager, honor it unconditionally
+            -- https://specifications.freedesktop.org/wm-spec/wm-spec-1.3.html#sourceindication
+            if W.peek s == Just w then mempty else windows $ W.focusWindow w
+        | mt == a_aw -> do
+            if W.peek s == Just w then mempty else windows . appEndo =<< runQuery activateHook w
+        | otherwise ->
+            -- The Message is unknown to us, but that is ok, not all are meant
+            -- to be handled by the window manager
+            mempty
 
-        mempty
+      mempty
 ewmhDesktopsEventHook' _ _ = mempty
 
 -- | A 'ManageHook' that shifts windows to the workspace they want to be in.
@@ -578,14 +589,17 @@ ewmhDesktopsMaybeManageHook = desktop >>= traverse doShiftI
   where
     doShiftI :: Int -> ManageHook
     doShiftI d = do
-        sort' <- liftX . XC.withDef $ \EwmhDesktopsConfig{workspaceSort} -> workspaceSort
-        ws <- liftX . gets $ map W.tag . sort' . W.workspaces . windowset
-        maybe idHook doShift $ ws !? d
+      sort' <- liftX . XC.withDef $ \EwmhDesktopsConfig {workspaceSort} -> workspaceSort
+      ws <- liftX . gets $ map W.tag . sort' . W.workspaces . windowset
+      maybe idHook doShift $ ws !? d
 
 -- | Add EWMH fullscreen functionality to the given config.
 ewmhFullscreen :: XConfig a -> XConfig a
-ewmhFullscreen c = c { startupHook     = startupHook c <> fullscreenStartup
-                     , handleEventHook = handleEventHook c <> fullscreenEventHook }
+ewmhFullscreen c =
+  c
+    { startupHook = startupHook c <> fullscreenStartup,
+      handleEventHook = handleEventHook c <> fullscreenEventHook
+    }
 
 -- | Advertises EWMH fullscreen support to the X server.
 {-# DEPRECATED fullscreenStartup "Use ewmhFullscreen instead." #-}
@@ -603,113 +617,115 @@ fullscreenEventHook = XC.withDef . fullscreenEventHook'
 
 fullscreenEventHook' :: Event -> EwmhDesktopsConfig -> X All
 fullscreenEventHook'
-    ClientMessageEvent{ev_event_display = dpy, ev_window = win, ev_message_type = typ, ev_data = action:dats}
-    EwmhDesktopsConfig{fullscreenHooks = (fullscreenHook, unFullscreenHook)} = do
-  managed <- isClient win
-  wmstate <- getAtom "_NET_WM_STATE"
-  fullsc <- getAtom "_NET_WM_STATE_FULLSCREEN"
-  wstate <- fromMaybe [] <$> getProp32 wmstate win
+  ClientMessageEvent {ev_event_display = dpy, ev_window = win, ev_message_type = typ, ev_data = action : dats}
+  EwmhDesktopsConfig {fullscreenHooks = (fullscreenHook, unFullscreenHook)} = do
+    managed <- isClient win
+    wmstate <- getAtom "_NET_WM_STATE"
+    fullsc <- getAtom "_NET_WM_STATE_FULLSCREEN"
+    wstate <- fromMaybe [] <$> getProp32 wmstate win
 
-  let isFull = fromIntegral fullsc `elem` wstate
+    let isFull = fromIntegral fullsc `elem` wstate
 
-      -- Constants for the _NET_WM_STATE protocol:
-      remove = 0
-      add = 1
-      toggle = 2
-      chWstate f = io $ changeProperty32 dpy win wmstate aTOM propModeReplace (f wstate)
+        -- Constants for the _NET_WM_STATE protocol:
+        remove = 0
+        add = 1
+        toggle = 2
+        chWstate f = io $ changeProperty32 dpy win wmstate aTOM propModeReplace (f wstate)
 
-  when (managed && typ == wmstate && fi fullsc `elem` dats) $ do
-    when (not isFull && (action == add || action == toggle)) $ do
-      chWstate (fi fullsc:)
-      windows . appEndo =<< runQuery fullscreenHook win
-    when (isFull && (action == remove || action == toggle)) $ do
-      chWstate $ delete (fi fullsc)
-      windows . appEndo =<< runQuery unFullscreenHook win
+    when (managed && typ == wmstate && fi fullsc `elem` dats) $ do
+      when (not isFull && (action == add || action == toggle)) $ do
+        chWstate (fi fullsc :)
+        windows . appEndo =<< runQuery fullscreenHook win
+      when (isFull && (action == remove || action == toggle)) $ do
+        chWstate $ delete (fi fullsc)
+        windows . appEndo =<< runQuery unFullscreenHook win
 
-  return $ All True
-
+    return $ All True
 fullscreenEventHook' _ _ = return $ All True
 
 setNumberOfDesktops :: (Integral a) => a -> X ()
 setNumberOfDesktops n = withDisplay $ \dpy -> do
-    a <- getAtom "_NET_NUMBER_OF_DESKTOPS"
-    r <- asks theRoot
-    io $ changeProperty32 dpy r a cARDINAL propModeReplace [fromIntegral n]
+  a <- getAtom "_NET_NUMBER_OF_DESKTOPS"
+  r <- asks theRoot
+  io $ changeProperty32 dpy r a cARDINAL propModeReplace [fromIntegral n]
 
 setCurrentDesktop :: (Integral a) => a -> X ()
 setCurrentDesktop i = withDisplay $ \dpy -> do
-    a <- getAtom "_NET_CURRENT_DESKTOP"
-    r <- asks theRoot
-    io $ changeProperty32 dpy r a cARDINAL propModeReplace [fromIntegral i]
+  a <- getAtom "_NET_CURRENT_DESKTOP"
+  r <- asks theRoot
+  io $ changeProperty32 dpy r a cARDINAL propModeReplace [fromIntegral i]
 
 setDesktopNames :: [String] -> X ()
 setDesktopNames names = withDisplay $ \dpy -> do
-    -- Names thereof
-    r <- asks theRoot
-    a <- getAtom "_NET_DESKTOP_NAMES"
-    c <- getAtom "UTF8_STRING"
-    let names' = map fromIntegral $ concatMap ((++[0]) . encode) names
-    io $ changeProperty8 dpy r a c propModeReplace names'
+  -- Names thereof
+  r <- asks theRoot
+  a <- getAtom "_NET_DESKTOP_NAMES"
+  c <- getAtom "UTF8_STRING"
+  let names' = map fromIntegral $ concatMap ((++ [0]) . encode) names
+  io $ changeProperty8 dpy r a c propModeReplace names'
 
 setClientList :: [Window] -> X ()
 setClientList wins = withDisplay $ \dpy -> do
-    r <- asks theRoot
-    a <- getAtom "_NET_CLIENT_LIST"
-    io $ changeProperty32 dpy r a wINDOW propModeReplace (fmap fromIntegral wins)
+  r <- asks theRoot
+  a <- getAtom "_NET_CLIENT_LIST"
+  io $ changeProperty32 dpy r a wINDOW propModeReplace (fmap fromIntegral wins)
 
 setClientListStacking :: [Window] -> X ()
 setClientListStacking wins = withDisplay $ \dpy -> do
-    r <- asks theRoot
-    a <- getAtom "_NET_CLIENT_LIST_STACKING"
-    io $ changeProperty32 dpy r a wINDOW propModeReplace (fmap fromIntegral wins)
+  r <- asks theRoot
+  a <- getAtom "_NET_CLIENT_LIST_STACKING"
+  io $ changeProperty32 dpy r a wINDOW propModeReplace (fmap fromIntegral wins)
 
 setWindowDesktop :: (Integral a) => Window -> a -> X ()
 setWindowDesktop win i = withDisplay $ \dpy -> do
-    a <- getAtom "_NET_WM_DESKTOP"
-    io $ changeProperty32 dpy win a cARDINAL propModeReplace [fromIntegral i]
+  a <- getAtom "_NET_WM_DESKTOP"
+  io $ changeProperty32 dpy win a cARDINAL propModeReplace [fromIntegral i]
 
 setActiveWindow :: Window -> X ()
 setActiveWindow w = withDisplay $ \dpy -> do
-    r <- asks theRoot
-    a <- getAtom "_NET_ACTIVE_WINDOW"
-    io $ changeProperty32 dpy r a wINDOW propModeReplace [fromIntegral w]
+  r <- asks theRoot
+  a <- getAtom "_NET_ACTIVE_WINDOW"
+  io $ changeProperty32 dpy r a wINDOW propModeReplace [fromIntegral w]
 
 setDesktopViewport :: [Position] -> X ()
 setDesktopViewport positions = withDisplay $ \dpy -> do
-    r <- asks theRoot
-    a <- io $ internAtom dpy "_NET_DESKTOP_VIEWPORT" True
-    io $ changeProperty32 dpy r a cARDINAL propModeReplace (map fi positions)
+  r <- asks theRoot
+  a <- io $ internAtom dpy "_NET_DESKTOP_VIEWPORT" True
+  io $ changeProperty32 dpy r a cARDINAL propModeReplace (map fi positions)
 
 setSupported :: X ()
 setSupported = withDisplay $ \dpy -> do
-    r <- asks theRoot
-    a <- getAtom "_NET_SUPPORTED"
-    supp <- mapM getAtom ["_NET_WM_STATE_HIDDEN"
-                         ,"_NET_WM_STATE_DEMANDS_ATTENTION"
-                         ,"_NET_NUMBER_OF_DESKTOPS"
-                         ,"_NET_CLIENT_LIST"
-                         ,"_NET_CLIENT_LIST_STACKING"
-                         ,"_NET_CURRENT_DESKTOP"
-                         ,"_NET_DESKTOP_NAMES"
-                         ,"_NET_ACTIVE_WINDOW"
-                         ,"_NET_WM_DESKTOP"
-                         ,"_NET_WM_STRUT"
-                         ,"_NET_WM_STRUT_PARTIAL"
-                         ,"_NET_DESKTOP_VIEWPORT"
-                         ]
-    io $ changeProperty32 dpy r a aTOM propModeReplace (fmap fromIntegral supp)
+  r <- asks theRoot
+  a <- getAtom "_NET_SUPPORTED"
+  supp <-
+    mapM
+      getAtom
+      [ "_NET_WM_STATE_HIDDEN",
+        "_NET_WM_STATE_DEMANDS_ATTENTION",
+        "_NET_NUMBER_OF_DESKTOPS",
+        "_NET_CLIENT_LIST",
+        "_NET_CLIENT_LIST_STACKING",
+        "_NET_CURRENT_DESKTOP",
+        "_NET_DESKTOP_NAMES",
+        "_NET_ACTIVE_WINDOW",
+        "_NET_WM_DESKTOP",
+        "_NET_WM_STRUT",
+        "_NET_WM_STRUT_PARTIAL",
+        "_NET_DESKTOP_VIEWPORT"
+      ]
+  io $ changeProperty32 dpy r a aTOM propModeReplace (fmap fromIntegral supp)
 
-    setWMName "xmonad"
+  setWMName "xmonad"
 
 -- TODO: use in SetWMName, UrgencyHook
 addSupported :: [String] -> X ()
 addSupported props = withDisplay $ \dpy -> do
-    r <- asks theRoot
-    a <- getAtom "_NET_SUPPORTED"
-    newSupportedList <- mapM (fmap fromIntegral . getAtom) props
-    io $ do
-        supportedList <- join . maybeToList <$> getWindowProperty32 dpy a r
-        changeProperty32 dpy r a aTOM propModeReplace (nub $ newSupportedList ++ supportedList)
+  r <- asks theRoot
+  a <- getAtom "_NET_SUPPORTED"
+  newSupportedList <- mapM (fmap fromIntegral . getAtom) props
+  io $ do
+    supportedList <- join . maybeToList <$> getWindowProperty32 dpy a r
+    changeProperty32 dpy r a aTOM propModeReplace (nub $ newSupportedList ++ supportedList)
 
 setFullscreenSupported :: X ()
 setFullscreenSupported = addSupported ["_NET_WM_STATE", "_NET_WM_STATE_FULLSCREEN"]
